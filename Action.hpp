@@ -15,6 +15,7 @@ struct Game;
 struct IActivity {
     virtual Step step(Game& g) = 0;
     virtual void load(std::istream& s) = 0;
+    virtual void describe(std::ostream& s) = 0;
 };
 
 struct Game {
@@ -22,9 +23,22 @@ struct Game {
     std::vector<std::unique_ptr<IActivity>> activity_pool;
     using factory = std::unique_ptr<IActivity>(*)();
     std::map<std::string, factory> factories;
+    using action_ref = int;
+
+    Step action(action_ref i) {
+        if(i == 0) return Step::Pop;
+        else if(i < 0) {
+            activities.back() = *activity_pool[-i];
+            return Step::Push;
+        }
+        else {
+            activities.emplace_back(*activity_pool[i]);
+            return Step::Push;
+        }
+    }
 
     void load(std::istream& s) {
-        while(s) {
+        while(s && !s.eof()) {
             bool append = false;
             s >> std::ws;
             if(s.peek() == '+') {
@@ -34,8 +48,10 @@ struct Game {
             auto x = load_activity(s);
             if(x == nullptr)
                 return;
+            auto& y = activity_pool.emplace_back(std::move(x));
             if(append)
-                activities.emplace_back(*x);
+                activities.emplace_back(*y);
+            s >> std::ws;
         }
     }
 
@@ -45,9 +61,9 @@ struct Game {
         auto i = factories.find(str);
         if(i == factories.end())
             return nullptr;
-        auto& x = activity_pool.emplace_back((*i->second)());
+        auto x = (*i->second)();
         x->load(s);
-        return std::move(x);
+        return x;
     }
 
     void run() {

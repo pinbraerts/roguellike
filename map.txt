@@ -1,6 +1,6 @@
 + Idle
 10	10
-1	3
+2	3
 ^	^	^	.	.	.	.	.	.	.
 .	^	.	.	.	-	-	-	-	-
 .	.	.	.	.	-	.	.	.	.
@@ -13,4 +13,7 @@
 .	^	^	.	.	.	.	.	.	.
 
 Dialog Hello, how are you?
-    Fine
+ Fine
+   2
+
+Dialog So fine I

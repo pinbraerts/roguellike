@@ -18,12 +18,15 @@ enum class CellType {
     Rock, Road, Grass, Water
 };
 
-CellDescription c2d[] = {
+CellDescription __c2d[] = {
         { "rock", false },
         { "road", true },
         { "grass", true },
         { "water", false }
 };
+CellDescription& c2d(CellType& c) {
+    return __c2d[(size_t)c];
+}
 
 CellType char2c(char c) {
     switch (c) {
@@ -52,8 +55,17 @@ char c2char(CellType c) {
     return 0;
 }
 
+struct Cell {
+    CellType type;
+    unsigned action;
+
+    operator CellType&() {
+        return type;
+    }
+};
+
 struct Idle: IActivity {
-    Field<CellType> map;
+    Field<Cell> map;
     size_t x, y;
 
     void load(std::istream& stream) override {
@@ -63,21 +75,27 @@ struct Idle: IActivity {
         for(auto& cell: map.raw()) {
             char c;
             stream >> c;
-            cell = char2c(c);
+            cell.type = char2c(c);
+            stream >> std::ws;
+            if(isdigit(stream.peek()))
+                stream >> cell.action;
         }
     }
+    void describe(std::ostream& s) override {
+        s << "open map";
+    }
 
-    CellType& at(size_t _x, size_t _y) {
+    auto& at(size_t _x, size_t _y) {
         return map.at(_x, _y);
     }
     CellDescription& get(size_t _x, size_t _y) {
-        return c2d[(size_t)at(_x, _y)];
+        return c2d(at(_x, _y));
     }
     CellDescription& get() {
         return get(x, y);
     }
 
-    void inform() {
+    void inform(Game& g) {
 #ifndef UNIX_CONSOLE
         std::cout << "You're on " << get(x, y).description << std::endl;
         if(x >= 1)
@@ -92,16 +110,20 @@ struct Idle: IActivity {
         std::cout << "\033[0;0H\033[2J";
         for(auto& i: map) {
             for(auto& j: i)
-                std::cout << c2char(j) << ' ';
+                std::cout << c2char(j.type) << ' ';
             std::cout << std::endl;
         }
         std::cout << "\033[" << (y + 1) << ';' << (x * 2 + 1) << 'H' << '@' << "\033[11;0H";
-        std::cout << "You're on " << get(x, y).description << std::endl;
+        auto& cell = at(x, y);
+        std::cout << "You're on " << c2d(cell).description;
+        if(cell.action != 0)
+            g.activity_pool[cell.action]->describe(std::cout << ". Press e to ");
+        std::cout << std::endl;
 #endif
     }
 
     Step step(Game& g) override {
-        inform();
+        inform(g);
         while(true) {
             char c;
 #ifdef UNIX_CONSOLE
@@ -117,7 +139,8 @@ struct Idle: IActivity {
                             << "a to go left" << std::endl
                             << "s to go down" << std::endl
                             << "d to go right" << std::endl
-                            << "q to quit" << std::endl;
+                            << "q to quit" << std::endl
+                            << "e to commit action" << std::endl;
                     break;
                 case 'w':
                     if(y >= 1 && get(x, y - 1).reachable) {
@@ -146,6 +169,11 @@ struct Idle: IActivity {
                         return Step::Next;
                     }
                     std::cout << "You can't go right" << std::endl;
+                    break;
+                case 'e':
+                    if(at(x, y).action != 0)
+                        return g.action(at(x, y).action);
+                    std::cout << "There is no action here" << std::endl;
                     break;
                 case 'q':
                     return Step::Quit;
