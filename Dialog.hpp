@@ -7,7 +7,7 @@
 
 struct Dialog: IActivity {
     std::string replica;
-    std::map<std::string, unsigned> answers;
+    std::vector<std::pair<std::string, unsigned>> answers;
 
     void describe(std::ostream& s) override {
         s << "talk";
@@ -18,6 +18,7 @@ struct Dialog: IActivity {
         std::getline(s, replica);
         std::set<std::reference_wrapper<unsigned>> waits_for_assign;
 
+        answers.emplace_back();
         while(s && !s.eof() && s.peek() == ' ') {
             s.get();
             if(s.peek() == ' ') {
@@ -27,10 +28,14 @@ struct Dialog: IActivity {
                     x.get() = id;
                 waits_for_assign.clear();
             }
+            else if(s.peek() == ':') {
+                std::getline(std::cin, answers[0].first);
+                waits_for_assign.emplace(answers[0].second);
+            }
             else {
                 std::string str;
                 std::getline(s, str);
-                waits_for_assign.emplace(answers[str]);
+                waits_for_assign.emplace(answers.emplace_back(std::move(str), 0).second);
             }
         }
         for(auto x: waits_for_assign)
@@ -45,18 +50,16 @@ struct Dialog: IActivity {
             std::cin.get();
             return Step::Pop;
         }
-        for(auto& i: answers) {
-            std::cout << ' ' << i.first << std::endl;
+        for(size_t i = 1; i < answers.size(); ++i) {
+            std::cout << i << ") " << answers[i].first << std::endl;
         }
-        std::string s;
-        std::cin >> s;
-        auto i = answers.find(s);
-        if(i == answers.end()) {
-            i = answers.find(""); // default answer
-            if(i == answers.end())
-                return Step::Quit;
-        }
-        return g.action(-i->second);
+        std::cout << "0) quit" << std::endl;
+        size_t i;
+        std::cin >> i;
+
+        if(i >= answers.size())
+            i = 0;
+        return g.action(-answers[i].second);
     }
 };
 
