@@ -131,6 +131,7 @@ struct Idle: IActivity {
 #endif
             std::cout << "What to do? ";
             std::cin >> c;
+            std::cout << "\033[2K";
             switch(c) {
                 case '?':
                     std::cout
