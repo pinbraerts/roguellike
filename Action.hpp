@@ -7,34 +7,50 @@
 #include <iostream>
 #include <string>
 
-enum class Step {
-    Next, Pop, Push, Quit
-};
+using namespace std::literals;
 
 struct Game;
-struct IActivity {
-    virtual Step step(Game& g) = 0;
+
+using action_ref = int;
+
+using action_err = std::string;
+action_err ok;
+action_err invalid_index = "Invalid index";
+
+template<class T> using factory = std::unique_ptr<T>(*)();
+
+struct IAction {
+    virtual action_err step(Game& g) = 0;
     virtual void load(std::istream& s) = 0;
     virtual void describe(std::ostream& s) = 0;
 };
 
 struct Game {
-    std::vector<std::reference_wrapper<IActivity>> activities;
-    std::vector<std::unique_ptr<IActivity>> activity_pool;
-    using factory = std::unique_ptr<IActivity>(*)();
-    std::map<std::string, factory> factories;
-    using action_ref = int;
+    std::vector<size_t> activities;
+    std::vector<std::unique_ptr<IAction>> pool;
+    std::map<std::string, factory<IAction>> factories;
 
-    Step action(action_ref i) {
-        if(i == 0) return Step::Pop;
-        else if(i < 0) {
-            activities.back() = *activity_pool[-i];
-            return Step::Push;
+    IAction& get(action_ref i) {
+        return *pool[activities.back() + abs(i)];
+    }
+    IAction* getp(action_ref i) {
+        auto x = activities.back() + abs(i);
+        if(x >= pool.size())
+            return nullptr;
+        return &get(i);
+    }
+
+    action_err action(action_ref i = 0) {
+        if(abs(i) >= pool.size())
+            return invalid_index;
+        if(i == 0) {
+            activities.pop_back();
         }
-        else {
-            activities.emplace_back(*activity_pool[i]);
-            return Step::Push;
-        }
+        else if(i < 0)
+            activities.back() -= i;
+        else
+            activities.emplace_back(activities.back() + i);
+        return ok;
     }
 
     void load(std::istream& s) {
@@ -48,14 +64,14 @@ struct Game {
             auto x = load_activity(s);
             if(x == nullptr)
                 return;
-            auto& y = activity_pool.emplace_back(std::move(x));
+            auto& y = pool.emplace_back(std::move(x));
             if(append)
-                activities.emplace_back(*y);
+                activities.emplace_back(pool.size() - 1);
             s >> std::ws;
         }
     }
 
-    std::unique_ptr<IActivity> load_activity(std::istream& s) {
+    std::unique_ptr<IAction> load_activity(std::istream& s) {
         std::string str;
         s >> str;
         auto i = factories.find(str);
@@ -68,13 +84,9 @@ struct Game {
 
     void run() {
         while(!activities.empty()) {
-            switch(activities.back().get().step(*this)) {
-            case Step::Quit:
-                return;
-            case Step::Pop:
-                activities.pop_back();
-                break;
-            case Step::Push: case Step::Next:
+            action_err err = pool[activities.back()]->step(*this);
+            if(err != ok) {
+                std::cerr << err << std::endl;
                 break;
             }
         }

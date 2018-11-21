@@ -19,10 +19,10 @@ enum class CellType {
 };
 
 CellDescription __c2d[] = {
-        { "rock", false },
-        { "road", true },
-        { "grass", true },
-        { "water", false }
+    { "rock", false },
+    { "road", true },
+    { "grass", true },
+    { "water", false }
 };
 CellDescription& c2d(CellType& c) {
     return __c2d[(size_t)c];
@@ -30,16 +30,17 @@ CellDescription& c2d(CellType& c) {
 
 CellType char2c(char c) {
     switch (c) {
-        case '.':
-            return CellType::Grass;
-        case '^':
-            return CellType::Rock;
-        case '-':
-            return CellType::Road;
-        case '~':
-            return CellType::Water;
+    case '.':
+        return CellType::Grass;
+    case '^':
+        return CellType::Rock;
+    case '-':
+        return CellType::Road;
+    case '~':
+        return CellType::Water;
+    default:
+        return CellType::Grass;
     }
-    return CellType::Grass;
 }
 char c2char(CellType c) {
     switch (c) {
@@ -52,19 +53,18 @@ char c2char(CellType c) {
     case CellType::Water:
         return '~';
     }
-    return 0;
 }
 
 struct Cell {
     CellType type;
-    unsigned action;
+    unsigned action = 0;
 
     operator CellType&() {
         return type;
     }
 };
 
-struct Idle: IActivity {
+struct Idle: IAction {
     Field<Cell> map;
     size_t x, y;
 
@@ -117,70 +117,76 @@ struct Idle: IActivity {
         auto& cell = at(x, y);
         std::cout << "You're on " << c2d(cell).description;
         if(cell.action != 0)
-            g.activity_pool[cell.action]->describe(std::cout << ". Press e to ");
+            g.get(cell.action).describe(std::cout << ". Press e to ");
         std::cout << std::endl;
 #endif
     }
 
-    Step step(Game& g) override {
-        inform(g);
+    action_err step(Game& g) override {
         while(true) {
-            char c;
+            inform(g);
+            while(true) {
+                char c;
 #ifdef UNIX_CONSOLE
-            std::cout << "\033[12;0H";
+                std::cout << "\033[12;0H";
 #endif
-            std::cout << "What to do? ";
-            std::cin >> c;
-            std::cout << "\033[2K";
-            switch(c) {
+                std::cout << "What to do? ";
+                std::cin >> c;
+#ifdef UNIX_CONSOLE
+                std::cout << "\033[2K";
+#endif
+                switch(c) {
                 case '?':
                     std::cout
-                            << "? to show help" << std::endl
-                            << "w to go up" << std::endl
-                            << "a to go left" << std::endl
-                            << "s to go down" << std::endl
-                            << "d to go right" << std::endl
-                            << "q to quit" << std::endl
-                            << "e to commit action" << std::endl;
+                            << "? to show help"     << std::endl
+                            << "w to go up"         << std::endl
+                            << "a to go left"       << std::endl
+                            << "s to go down"       << std::endl
+                            << "d to go right"      << std::endl
+                            << "q to quit"          << std::endl
+                            << "e to do action"     << std::endl;
                     break;
                 case 'w':
-                    if(y >= 1 && get(x, y - 1).reachable) {
-                        --y;
-                        return Step::Next;
+                    if(y < 1 || !get(x, y - 1).reachable) {
+                        std::cout << "You can't go up" << std::endl;
+                        continue;
                     }
-                    std::cout << "You can't go up" << std::endl;
+                    --y;
                     break;
                 case 's':
-                    if(y < 9 && get(x, y + 1).reachable) {
-                        ++y;
-                        return Step::Next;
+                    if(y >= map.height() - 1 || !get(x, y + 1).reachable) {
+                        std::cout << "You can't go down" << std::endl;
+                        continue;
                     }
-                    std::cout << "You can't go down" << std::endl;
+                    ++y;
                     break;
                 case 'a':
-                    if(x >= 1 && get(x - 1, y).reachable) {
-                        --x;
-                        return Step::Next;
+                    if(x < 1 || !get(x - 1, y).reachable) {
+                        std::cout << "You can't go left" << std::endl;
+                        continue;
                     }
-                    std::cout << "You can't go left" << std::endl;
+                    --x;
                     break;
                 case 'd':
-                    if(x < 9 && get(x + 1, y).reachable) {
-                        ++x;
-                        return Step::Next;
+                    if(x >= map.width() - 1 || !get(x + 1, y).reachable) {
+                        std::cout << "You can't go right" << std::endl;
+                        continue;
                     }
-                    std::cout << "You can't go right" << std::endl;
+                    ++x;
                     break;
                 case 'e':
-                    if(at(x, y).action != 0)
-                        return g.action(at(x, y).action);
-                    std::cout << "There is no action here" << std::endl;
-                    break;
+                    if(at(x, y).action == 0) {
+                        std::cout << "There is no action here" << std::endl;
+                        continue;
+                    }
+                    return g.action(at(x, y).action);
                 case 'q':
-                    return Step::Quit;
+                    return g.action();
+                }
+                break;
             }
         }
-        return Step::Next;
+        return ok;
     }
 };
 
