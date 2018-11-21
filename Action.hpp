@@ -23,6 +23,7 @@ struct IAction {
     virtual action_err step(Game& g) = 0;
     virtual void load(std::istream& s) = 0;
     virtual void describe(std::ostream& s) = 0;
+    virtual ~IAction() = default;
 };
 
 struct Game {
