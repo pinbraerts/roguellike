@@ -10,4 +10,6 @@ add_executable(
         Idle.hpp
         map.txt
         Idle.hpp
-        Field.hpp Dialog.hpp)
+        Field.hpp
+        Replica.hpp
+)
