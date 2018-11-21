@@ -4,7 +4,7 @@
 #include <iostream>
 #include <memory>
 
-#include "Action.hpp"
+#include "Game.hpp"
 #include "Field.hpp"
 
 #define UNIX_CONSOLE

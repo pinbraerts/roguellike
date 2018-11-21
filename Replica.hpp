@@ -5,7 +5,7 @@
 #include <sstream>
 #include <iterator>
 
-#include "Action.hpp"
+#include "Game.hpp"
 
 struct Replica: IAction {
     std::vector<std::pair<std::string, action_ref>> answers;

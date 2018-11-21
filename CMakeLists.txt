@@ -12,4 +12,5 @@ add_executable(
         Idle.hpp
         Field.hpp
         Replica.hpp
+        Game.hpp
 )
